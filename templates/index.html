@@ -18,7 +18,7 @@
         #tabs {
     position: absolute;
     top: 15px;
-    right: 20px;   /* 👉 move to right instead of center */
+    right: 20px;
     left: auto;
     transform: none;
 
@@ -48,9 +48,7 @@
 
         #map {
             height: 100%;
-        }
-
-        /* 🔥 MAKE STATS TAB FULL SCREEN + FLEX LAYOUT */
+        } /* STATS TAB FULL SCREEN + FLEX LAYOUT */
 #statsTab {
     display: none;
     height: 100vh;
@@ -62,20 +60,20 @@
     align-items: center;
 }
 
-/* 🔥 CHART AREA (TOP HALF) */
+/* CHART AREA (TOP HALF) */
 .chart-container {
     flex: 1;                 /* fills available space */
     width: 90%;
     max-width: 900px;
 }
 
-/* 🔥 FORCE CHART TO FIT CONTAINER */
+/* CHART CONTAINER */
 .chart-container canvas {
     width: 100% !important;
     height: 100% !important;
 }
 
-/* 🔥 STATS AREA (BOTTOM) */
+/* STATS AREA (BOTTOM) */
 #statsBox {
     width: 90%;
     max-width: 900px;

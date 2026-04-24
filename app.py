@@ -3,7 +3,6 @@ from graph import generate_coordinates, build_graph, dijkstra
 
 app = Flask(__name__)
 
-# ✅ build ONCE (important)
 coords = generate_coordinates()
 graph = build_graph(coords)
 
@@ -32,7 +31,7 @@ def route():
     if not start or not end:
         return jsonify({"error": "Missing start/end"}), 400
 
-    # ✅ PASS GRAPH IN
+    # Pass graph in
     cost, path = dijkstra(start, end, coords, zones, graph)
 
     return jsonify({

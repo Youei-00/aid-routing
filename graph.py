@@ -35,12 +35,12 @@ def generate_coordinates():
         r = random.choice(regions)
         coords[f"Camp{i}"] = jitter(*r, 15)
 
-    # 🏪 Stores
+    # Stores
     for i in range(30):
         r = random.choice(regions)
         coords[f"Store{i}"] = jitter(*r, 10)
 
-    # 🏥 Hospitals
+    # Hospitals
     for i in range(20):
         r = random.choice(regions)
         coords[f"Hospital{i}"] = jitter(*r, 6)
@@ -72,7 +72,7 @@ def haversine(a, b):
 def build_graph(coords, k=6):
     graph = {node: [] for node in coords}
 
-    # 🔒 prevent duplicate edges
+    # prevent duplicate edges
     added_edges = set()
 
     # ------------------------
@@ -129,7 +129,7 @@ def build_graph(coords, k=6):
     return graph
 
 # ------------------------
-# 🔥 IMPROVED RISK CHECK (MULTI-POINT)
+# RISK CHECK (MULTI-POINT)
 # ------------------------
 def is_blocked(coord1, coord2, zones):
     for zone in zones:
@@ -148,7 +148,7 @@ def is_blocked(coord1, coord2, zones):
 
 
 # ------------------------
-# 🔥 DIJKSTRA (STRONG AVOIDANCE)
+# DIJKSTRA
 # ------------------------
 def dijkstra(start, end, coords, zones, graph):
     pq = [(0, start, [])]
@@ -171,7 +171,7 @@ def dijkstra(start, end, coords, zones, graph):
             if neighbor in visited:
                 continue
 
-            # 🔥 VERY strong penalty (forces rerouting)
+            # strong penalty (forces rerouting)
             if is_blocked(coords[node], coords[neighbor], zones):
                 penalty = dist * 2 + 500  # base + scaled penalty
             else:

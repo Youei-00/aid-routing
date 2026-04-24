@@ -25,7 +25,7 @@ const hospitalIcon = L.icon({
     iconSize: [30, 30]
 });
 
-// 🚛 TRUCK ICON
+// TRUCK ICON
 const truckImg = "https://cdn-icons-png.flaticon.com/128/2107/2107330.png";
 
 let heatLayer = null;
@@ -39,7 +39,7 @@ let riskMarkers = [];
 let chart = null;
 
 // ------------------
-// 🔁 TAB SWITCHING
+// TAB SWITCHING
 // ------------------
 function showTab(tab) {
     document.getElementById("mapTab").style.display = "none";
@@ -54,7 +54,7 @@ function showTab(tab) {
 }
 
 // ------------------
-// 📏 DISTANCE
+// DISTANCE
 // ------------------
 function getDistance(a, b) {
     let R = 6371;
@@ -71,7 +71,7 @@ function getDistance(a, b) {
 }
 
 // ------------------
-// 📊 STATS + CHART
+// STATS + CHART
 // ------------------
 function updateStats(path) {
 
@@ -83,7 +83,6 @@ for (let node of path) {
     if (node.includes("Store")) storeCount++;
 }
 
-// 🚨 Coverage logic (simple but meaningful)
 let coverage = 0;
 
 if (path.length > 0) {
@@ -117,7 +116,7 @@ if (path.length > 0) {
     let travelTime = totalDistance / avgSpeed;
     let stops = path.length;
     let efficiency = totalDistance / stops;
-let riskPercent = Math.min(100,
+    let riskPercent = Math.min(100,
     (riskHits / (path.length - 1)) * 100
 
 );
@@ -142,7 +141,7 @@ function setText(id, value) {
 }
 
 // ------------------
-// 📈 CHART (FIXED)
+// CHART
 // ------------------
 function createChart(path) {
 
@@ -249,7 +248,7 @@ function generateRiskZonesFromGraph(graph, coords, count = 50) {
         let lat = a[0] + t * (b[0] - a[0]);
         let lng = a[1] + t * (b[1] - a[1]);
 
-        // 🔥 add to heatmap (3rd value = intensity)
+        // add to heatmap (3rd value = intensity)
         heatPoints.push([lat, lng, Math.random() * 0.8 + 0.2]);
 
         // keep for backend risk calculations
@@ -259,7 +258,7 @@ function generateRiskZonesFromGraph(graph, coords, count = 50) {
         });
     }
 
-    // 🔥 CREATE HEATMAP
+    // CREATE HEATMAP
     heatLayer = L.heatLayer(heatPoints, {
         radius: 25,      // size of heat blobs
         blur: 20,        // smoothness
@@ -353,7 +352,7 @@ function selectNode(node) {
 }
 
 // ------------------
-// 🚛 TRUCK ANIMATION
+// TRUCK ANIMATION
 // ------------------
 function animateTruck(pathCoords) {
 
@@ -387,10 +386,10 @@ function animateTruck(pathCoords) {
            let dx = end[1] - start[1]; // longitude (east-west)
 let dy = end[0] - start[0]; // latitude (north-south)
 
-// 🔥 correct geographic angle
+// geographic angle
 let angle = Math.atan2(dx, dy) * (180 / Math.PI);
 
-// 🔥 adjust for icon orientation (MOST IMPORTANT PART)
+// adjust for icon orientation
 angle = angle - 90;
 
             truckMarker.setIcon(L.divIcon({
@@ -420,7 +419,7 @@ angle = angle - 90;
 }
 
 // ------------------
-// ROUTE (FIXED)
+// ROUTE
 // ------------------
 async function findRoute(start,end) {
     const res = await fetch("/route", {
@@ -438,7 +437,7 @@ async function findRoute(start,end) {
     if (routeLine) map.removeLayer(routeLine);
     if (decorator) map.removeLayer(decorator);
 
-    // 🔥 supports BOTH backend formats
+    //supports both backend formats
     let path = data.safe_path || data.path;
 
     let latlngs = path.map(n => nodes[n]);
