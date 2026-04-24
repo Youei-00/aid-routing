@@ -2,44 +2,58 @@ import heapq
 import math
 import random
 
-# ------------------------
-# RANDOM COORDINATES (USA)
-# ------------------------
 def generate_coordinates():
     coords = {}
 
-    # USA bounding box (safe margins so nothing goes off screen)
-    MIN_LAT, MAX_LAT = 26, 48
-    MIN_LNG, MAX_LNG = -124, -67
+    regions = [
+        (37, -95),    # USA
+        (50, 10),     # Europe
+        (20, 78),     # India
+        (35, 105),    # China
+        (-23, -58),   # South America
+        (-25, 135),   # Australia
+        (0, 20)       # Africa
+    ]
 
-    # Warehouses (few, spread out)
-    for i in range(5):
-        coords[f"Warehouse{i}"] = (
-            random.uniform(MIN_LAT, MAX_LAT),
-            random.uniform(MIN_LNG, MAX_LNG)
+    def jitter(lat, lng, spread):
+        return (
+            lat + random.uniform(-spread, spread),
+            lng + random.uniform(-spread, spread)
         )
 
-    # Hubs (medium amount)
-    for i in range(15):
-        coords[f"Hub{i}"] = (
-            random.uniform(MIN_LAT, MAX_LAT),
-            random.uniform(MIN_LNG, MAX_LNG)
-        )
+    # Warehouses
+    for i, r in enumerate(regions):
+        coords[f"Warehouse{i}"] = jitter(*r, 8)
 
-    # Camps / Stores (many)
+    # Hubs
     for i in range(25):
-        coords[f"Camp{i}"] = (
-            random.uniform(MIN_LAT, MAX_LAT),
-            random.uniform(MIN_LNG, MAX_LNG)
-        )
+        r = random.choice(regions)
+        coords[f"Hub{i}"] = jitter(*r, 12)
+
+    # Camps
+    for i in range(40):
+        r = random.choice(regions)
+        coords[f"Camp{i}"] = jitter(*r, 15)
+
+    # 🏪 Stores
+    for i in range(30):
+        r = random.choice(regions)
+        coords[f"Store{i}"] = jitter(*r, 10)
+
+    # 🏥 Hospitals
+    for i in range(20):
+        r = random.choice(regions)
+        coords[f"Hospital{i}"] = jitter(*r, 6)
 
     return coords
+
 
 # ------------------------
 # DISTANCE
 # ------------------------
 def haversine(a, b):
     R = 6371
+
     lat1, lon1 = a
     lat2, lon2 = b
 
@@ -49,17 +63,21 @@ def haversine(a, b):
     lat1 = math.radians(lat1)
     lat2 = math.radians(lat2)
 
-    a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
-    return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a))
-
+    x = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
+    return 2 * R * math.atan2(math.sqrt(x), math.sqrt(1-x))
 
 # ------------------------
-# BUILD GRAPH
+# BUILD GRAPH (CONNECTED + GLOBAL)
 # ------------------------
-def build_graph(coords, k=5):
+def build_graph(coords, k=6):
     graph = {node: [] for node in coords}
 
-    # Step 1: K-nearest neighbors (bidirectional)
+    # 🔒 prevent duplicate edges
+    added_edges = set()
+
+    # ------------------------
+    # LOCAL CONNECTIONS (nearest neighbors)
+    # ------------------------
     for node1 in coords:
         distances = []
 
@@ -73,67 +91,68 @@ def build_graph(coords, k=5):
         distances.sort()
 
         for dist, neighbor in distances[:k]:
-            graph[node1].append((neighbor, dist))
-            graph[neighbor].append((node1, dist))  # ✅ FIX
 
-    # Step 2: Ensure full connectivity
-    visited = set()
-
-    def dfs(start):
-        stack = [start]
-        comp = set()
-        while stack:
-            n = stack.pop()
-            if n in comp:
+            # avoid duplicate edges
+            edge_key = tuple(sorted([node1, neighbor]))
+            if edge_key in added_edges:
                 continue
-            comp.add(n)
-            for neigh, _ in graph[n]:
-                stack.append(neigh)
-        return comp
+            added_edges.add(edge_key)
 
-    components = []
-    for node in coords:
-        if node not in visited:
-            comp = dfs(node)
-            visited |= comp
-            components.append(comp)
+            # small randomness for realism
+            dist *= random.uniform(0.8, 1.3)
 
-    # Connect components
-    for i in range(len(components) - 1):
-        a = list(components[i])[0]
-        b = list(components[i + 1])[0]
+            graph[node1].append((neighbor, dist))
+            graph[neighbor].append((node1, dist))
+
+    # ------------------------
+    # GLOBAL CONNECTIONS (long distance)
+    # ------------------------
+    nodes = list(coords.keys())
+
+    for _ in range(len(nodes) // 3):
+        a = random.choice(nodes)
+        b = random.choice(nodes)
+
+        if a == b:
+            continue
+
+        edge_key = tuple(sorted([a, b]))
+        if edge_key in added_edges:
+            continue
+        added_edges.add(edge_key)
 
         dist = haversine(coords[a], coords[b])
+
         graph[a].append((b, dist))
         graph[b].append((a, dist))
 
     return graph
+
 # ------------------------
-# RISK CHECK
+# 🔥 IMPROVED RISK CHECK (MULTI-POINT)
 # ------------------------
 def is_blocked(coord1, coord2, zones):
     for zone in zones:
         zx, zy = zone["center"]
-        radius = zone["radius"] / 1000
+        radius = zone["radius"] / 1000  # meters → km
 
-        # check midpoint
-        mx = (coord1[0] + coord2[0]) / 2
-        my = (coord1[1] + coord2[1]) / 2
+        # Check multiple points along the edge
+        for t in [0.2, 0.4, 0.6, 0.8]:
+            lat = coord1[0] + t * (coord2[0] - coord1[0])
+            lng = coord1[1] + t * (coord2[1] - coord1[1])
 
-        if haversine((mx, my), (zx, zy)) < radius:
-            return True
+            if haversine((lat, lng), (zx, zy)) < radius:
+                return True
 
     return False
 
 
 # ------------------------
-# DIJKSTRA
+# 🔥 DIJKSTRA (STRONG AVOIDANCE)
 # ------------------------
-def dijkstra(start, end, coords, zones):
+def dijkstra(start, end, coords, zones, graph):
     pq = [(0, start, [])]
     visited = set()
-
-    dynamic_graph = build_graph(coords)
 
     while pq:
         cost, node, path = heapq.heappop(pq)
@@ -147,20 +166,18 @@ def dijkstra(start, end, coords, zones):
         if node == end:
             return cost, path
 
-        for neighbor, dist in dynamic_graph[node]:
+        for neighbor, dist in graph[node]:
 
             if neighbor in visited:
                 continue
 
-            base_cost = dist  # ✅ use existing distance
-
-            # safer penalty (still avoids risk)
+            # 🔥 VERY strong penalty (forces rerouting)
             if is_blocked(coords[node], coords[neighbor], zones):
-                penalty = base_cost * 10
+                penalty = dist * 2 + 500  # base + scaled penalty
             else:
                 penalty = 0
 
-            total = cost + base_cost + penalty
+            total = cost + dist + penalty
 
             heapq.heappush(pq, (total, neighbor, path))
 

@@ -1,20 +1,299 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Routing System</title>
+    <title>Humanitarian Routing System</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
     <script src="https://unpkg.com/leaflet-polylinedecorator"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-        body { margin:0; }
-        #map { height:100vh; }
+        body { margin:0; font-family: Arial, sans-serif; }
+
+        /* ---------------------------
+           TABS
+        --------------------------- */
+        #tabs {
+    position: absolute;
+    top: 15px;
+    right: 20px;   /* 👉 move to right instead of center */
+    left: auto;
+    transform: none;
+
+    z-index: 3000; /* keep above everything */
+}
+
+        #tabs button {
+            padding: 8px 12px;
+            margin: 0 5px;
+            border: none;
+            background: #0A3D62;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #tabs button:hover {
+            background: #145DA0;
+        }
+
+        /* ---------------------------
+           MAP + STATS CONTAINERS
+        --------------------------- */
+        #mapTab {
+            height: 100vh;
+        }
+
+        #map {
+            height: 100%;
+        }
+
+        /* 🔥 MAKE STATS TAB FULL SCREEN + FLEX LAYOUT */
+#statsTab {
+    display: none;
+    height: 100vh;
+    background: #111;
+    color: white;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 🔥 CHART AREA (TOP HALF) */
+.chart-container {
+    flex: 1;                 /* fills available space */
+    width: 90%;
+    max-width: 900px;
+}
+
+/* 🔥 FORCE CHART TO FIT CONTAINER */
+.chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* 🔥 STATS AREA (BOTTOM) */
+#statsBox {
+    width: 90%;
+    max-width: 900px;
+
+    padding-top: 15px;
+    margin-bottom: 20px;
+
+    border-top: 1px solid rgba(255,255,255,0.2);
+
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+
+        #routeChart {
+            height: 600px;
+            max-width: 900px;
+        }
+
+        #statsBox p {
+            margin: 8px 0;
+        }
+        .stat-card {
+    background: rgba(255,255,255,0.05);
+    padding: 15px;
+    border-radius: 10px;
+
+    box-shadow: 0 0 10px rgba(0,0,0,0.4);
+}
+
+        /* ---------------------------
+           CONTROL PANEL
+        --------------------------- */
+        #control-panel {
+            position: absolute;
+            top: 100px;
+            right: 20px;
+            width: 260px;
+
+            background: rgba(20, 20, 20, 0.95);
+            color: white;
+
+            padding: 15px;
+            border-radius: 10px;
+
+            z-index: 1000;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+        }
+
+        #control-panel h2 {
+            margin: 0 0 10px;
+            font-size: 18px;
+        }
+
+        .section {
+            margin-top: 15px;
+        }
+
+        .section h3 {
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .legend-item img {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+        }
+
+        .line {
+            width: 25px;
+            height: 4px;
+            display: inline-block;
+            margin-right: 8px;
+            border-radius: 2px;
+        }
+
+        .line.blue { background: #0A3D62; }
+        .line.gray { background: gray; }
+
+        .risk-x {
+            color: red;
+            font-weight: bold;
+            font-size: 18px;
+            margin-right: 8px;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 5px;
+            padding: 8px;
+            background: #0A3D62;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #145DA0;
+        }
+        .truck-icon {
+    background: transparent !important;
+    border: none !important;
+}
     </style>
 </head>
 <body>
 
-<div id="map"></div>
+<!-- 🔘 TAB BUTTONS -->
+<div id="tabs">
+    <button onclick="showTab('mapTab')">🗺 Map</button>
+    <button onclick="showTab('statsTab')">📊 Stats</button>
+</div>
+
+<!-- 🗺 MAP TAB -->
+<div id="mapTab">
+    <div id="map"></div>
+</div>
+
+<!-- 📊 STATS TAB -->
+<div id="statsTab">
+    <h2>📊 Route Analytics</h2>
+
+    <div class="chart-container">
+    <canvas id="routeChart"></canvas>
+</div>
+
+    <div id="statsBox">
+
+    <div class="stat-card">📏 Distance<br><strong><span id="statDistance">0</span> km</strong></div>
+
+    <div class="stat-card">📍 Stops<br><strong><span id="statStops">0</span></strong></div>
+
+    <div class="stat-card">⚠️ Risk Hits<br><strong><span id="statRisk">0</span></strong></div>
+
+    <div class="stat-card">🏥 Hospitals<br><strong><span id="statHospitals">0</span></strong></div>
+
+    <div class="stat-card">🏪 Supply Stops<br><strong><span id="statStores">0</span></strong></div>
+
+    <div class="stat-card">🚨 Coverage<br><strong><span id="statCoverage">0%</span></strong></div>
+
+    <div class="stat-card">⏱ Time<br><strong><span id="statTime">0</span> hrs</strong></div>
+
+    <div class="stat-card">📦 Efficiency<br><strong><span id="statEfficiency">0</span> km/stop</strong></div>
+
+    <div class="stat-card">🔥 Risk Exposure<br><strong><span id="statRiskPercent">0%</span></strong></div>
+
+    </div>
+</div>
+
+<!-- 📦 CONTROL PANEL -->
+<div id="control-panel">
+    <h2>🚚 Humanitarian Routing</h2>
+
+    <div class="section">
+        <h3>Legend</h3>
+
+        <div class="legend-item">
+            <img src="https://cdn-icons-png.flaticon.com/128/1350/1350237.png">
+            <span>Warehouse</span>
+        </div>
+
+        <div class="legend-item">
+            <img src="https://cdn-icons-png.flaticon.com/128/1054/1054092.png">
+            <span>Camp </span>
+        </div>
+
+        <div class="legend-item">
+            <img src="https://cdn-icons-png.flaticon.com/128/7845/7845682.png">
+            <span>Store </span>
+        </div>
+
+        <div class="legend-item">
+            <img src="https://cdn-icons-png.flaticon.com/128/4320/4320350.png">
+            <span>Hospital </span>
+        </div>
+
+
+        <div class="legend-item">
+            <span class="line blue"></span>
+            <span>Optimal Route</span>
+        </div>
+
+        <div class="legend-item">
+            <span class="line gray"></span>
+            <span>Road Network</span>
+        </div>
+
+        <div class="legend-item">
+            <span class="risk-x">✖</span>
+            <span>Traffic Disruption</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>Controls</h3>
+        <button onclick="clearRoute()">🧹 Clear Route</button>
+    </div>
+
+    <div class="section">
+        <h3>Instructions</h3>
+        <p>Click two locations to find the safest route.</p>
+    </div>
+
+    <div class="section">
+        <h3>Stats</h3>
+        <p>Nodes: <span id="nodeCount">0</span></p>
+    </div>
+</div>
 
 <script src="/static/script.js"></script>
 
